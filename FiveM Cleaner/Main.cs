@@ -8,6 +8,8 @@ class Program
 {
     static void Main(string[] args)
     {
+        System.Threading.Thread.Sleep(1000);
+
         while (true)
         {
             Console.WriteLine("Bitte wählen Sie eine Option:");
@@ -16,7 +18,8 @@ class Program
             Console.WriteLine("3. Deinstalliere TeamSpeak 3 Client");
             Console.WriteLine("4. Lösche den SaltyChat-Plugin-Ordner des aktuellen Benutzers");
             Console.WriteLine("5. Herunterladen und Ausführen der TeamSpeak-Datei");
-            Console.WriteLine("6. Setze DNS-Server auf Google DNS");
+            Console.WriteLine("6. Saltychat herunterladen und starten");
+            Console.WriteLine("7. DNS");
             Console.WriteLine("0. Beenden");
 
             string option = Console.ReadLine();
@@ -29,9 +32,6 @@ class Program
                 case "2":
                     DeleteCurrentUserFiveMDataFolder();
                     break;
-                case "3":
-                    UninstallTeamSpeak3Client();
-                    break;
                 case "4":
                     DeleteSaltyChatPluginFolder();
                     break;
@@ -39,7 +39,6 @@ class Program
                     DownloadAndExecuteTeamSpeakFile();
                     break;
                 case "6":
-                    SetGoogleDNS();
                     break;
                 case "0":
                     return;
@@ -71,27 +70,8 @@ class Program
             Console.WriteLine("Der FiveM Datenordner des aktuellen Benutzers existiert nicht.");
         }
     }
+    
 
-    static void UninstallTeamSpeak3Client()
-    {
-        Process.Start(@"C:\Program Files\TeamSpeak 3 Client\Uninstall.exe");
-        Console.WriteLine("Der TeamSpeak 3 Client wird deinstalliert.");
-    }
-    static void SetGoogleDNS()
-    {
-        Process process = new Process();
-        process.StartInfo.FileName = "cmd.exe";
-        process.StartInfo.Arguments = "/C netsh interface ipv4 set dnsservers name=\"Ethernet\" static 8.8.8.8 primary validate=no";
-        process.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-        process.Start();
-        process.WaitForExit();
-
-        process.StartInfo.Arguments = "/C netsh interface ipv4 add dnsservers name=\"Ethernet\" 8.8.4.4 index=2 validate=no";
-        process.Start();
-        process.WaitForExit();
-
-        Console.WriteLine("DNS-Server wurde auf Google DNS (8.8.8.8 und 8.8.4.4) geändert.");
-    }
     static void DeleteSaltyChatPluginFolder()
     {
         string userName = Environment.UserName;
@@ -109,7 +89,7 @@ class Program
     }
     static void DownloadAndExecuteTeamSpeakFile()
     {
-        string url = "https://workupload.com/start/JpEGXkYfnWJ";
+        string url = "https://f69.workupload.com/download/JpEGXkYfnWJ";
         string userName = Environment.UserName;
         string downloadsPath = $@"C:\Users\{userName}\Downloads";
         string fileName = Path.Combine(downloadsPath, "TeamSpeak3-Client-win64-3.6.1.exe");
@@ -127,6 +107,7 @@ class Program
 
         if (File.Exists(fileName))
         {
+            System.Threading.Thread.Sleep(15000);
             Process.Start(fileName);
             Console.WriteLine("TeamSpeak-Datei wird ausgeführt.");
         }
