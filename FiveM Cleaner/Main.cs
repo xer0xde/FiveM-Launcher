@@ -5,7 +5,7 @@ using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Security.Principal;
-
+using System.Management;
 class Program
 {
     private const string OvoticUrl = "https://cdn.ovotic.de/license/main.php";
@@ -155,7 +155,7 @@ class Program
                     DownloadAndExecuteSaltychat();
                     break;
                 case "7":
-                    SetGoogleDNS();
+                    SetDNSServers("8.8.8.8", "8.8.4.4");
                     break;
                 case "8":
                     Console.WriteLine(clientIp);
@@ -290,39 +290,77 @@ class Program
         }
     }
 
-    public static NetworkInterface GetActiveEthernetOrWifiNetworkInterface()
+    static void SetDNSServers(string primaryDNS, string secondaryDNS)
     {
-        var Nic = NetworkInterface.GetAllNetworkInterfaces().FirstOrDefault(
-            a => a.OperationalStatus == OperationalStatus.Up &&
-                 (a.NetworkInterfaceType == NetworkInterfaceType.Wireless80211 || a.NetworkInterfaceType == NetworkInterfaceType.Ethernet) &&
-                 a.GetIPProperties().GatewayAddresses.Any(g => g.Address.AddressFamily.ToString() == "InterNetwork"));
+        // PowerShell-Skript erstellen und speichern
+        string scriptContent = @"
+Set-ExecutionPolicy RemoteSigned -Scope Process
 
-        return Nic;
-    }
-    public static void SetDNS(string DnsString)
-    {
-        string[] Dns = { DnsString };
-        var CurrentInterface = GetActiveEthernetOrWifiNetworkInterface();
-        if (CurrentInterface == null) return;
+$primaryDNS = '8.8.8.8'
+$secondaryDNS = '8.8.4.4'
 
-        ManagementClass objMC = new ManagementClass("Win32_NetworkAdapterConfiguration");
-        ManagementObjectCollection objMOC = objMC.GetInstances();
-        foreach (ManagementObject objMO in objMOC)
+$nic = Get-WmiObject Win32_NetworkAdapterConfiguration | Where-Object { $_.IPEnabled -eq $true }
+
+if ($nic -ne $null) {
+    $dns = @($primaryDNS, $secondaryDNS)
+    $nic.SetDNSServerSearchOrder($dns)
+    Write-Host 'DNS-Server wurden erfolgreich geändert.'
+} else {
+    Write-Host 'Fehler: Netzwerkadapter nicht gefunden.'
+}
+";
+
+        // Pfad zum PowerShell-Skript
+        string scriptPath = Path.Combine(Path.GetTempPath(), "TempScript.ps1");
+
+        // Skript im temporären Verzeichnis speichern
+        File.WriteAllText(scriptPath, scriptContent);
+
+        // Starte PowerShell mit dem Skript
+        ProcessStartInfo startInfo = new ProcessStartInfo
         {
-            if ((bool)objMO["IPEnabled"])
-            {
-                if (objMO["Description"].ToString().Equals(CurrentInterface.Description))
-                {
-                    ManagementBaseObject objdns = objMO.GetMethodParameters("SetDNSServerSearchOrder");
-                    if (objdns != null)
-                    {
-                        objdns["DNSServerSearchOrder"] = Dns;
-                        objMO.InvokeMethod("SetDNSServerSearchOrder", objdns, null);
-                    }
-                }
-            }
+            FileName = "powershell.exe",
+            Arguments = $"-ExecutionPolicy Bypass -File \"{scriptPath}\"",
+            Verb = "runas", // Starte mit Administratorrechten
+            RedirectStandardOutput = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+
+        Process process = new Process
+        {
+            StartInfo = startInfo
+        };
+
+        process.Start();
+
+        // Warte auf das Ende der PowerShell-Ausführung
+        process.WaitForExit();
+
+        // Lösche das PowerShell-Skript
+        File.Delete(scriptPath);
+
+        // Gib die Ausgabe der PowerShell aus (falls benötigt)
+        string output = process.StandardOutput.ReadToEnd();
+        Console.WriteLine(output);
+
+        // Prüfe den Exit-Code (0 bedeutet Erfolg)
+        int exitCode = process.ExitCode;
+        Console.WriteLine($"Exit-Code: {exitCode}");
+
+        // Überprüfe den Exit-Code und handle entsprechend
+        if (exitCode == 0)
+        {
+            Console.WriteLine("Erfolgreich!");
+        }
+        else
+        {
+            Console.WriteLine("Fehler!");
         }
     }
+    
+    
+    
         
     static void CloseTeamSpeak()
     {
