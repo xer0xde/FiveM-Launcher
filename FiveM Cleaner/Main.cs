@@ -12,37 +12,60 @@ class Program
 
     static void Main(string[] args)
     {
+        Console.Title = "Launching...";
+
         Console.WriteLine("[i] Installing ");
         System.Threading.Thread.Sleep(1000);
 
         Console.WriteLine("[i] Fetching Informations ");
         System.Threading.Thread.Sleep(1500);
+        Console.ForegroundColor = ConsoleColor.Green;
 
         Console.WriteLine("[i] Connecting to License System (Frankfurt) ");
         if (CheckConnectionToOvotic())
         {
+            Console.ForegroundColor = ConsoleColor.Green;
+
             Console.WriteLine("[i] Verbindung zu Server #1 erfolgreich.");
         }
         else
         {
+            Console.ForegroundColor = ConsoleColor.Red;
+
             Console.WriteLine("[i] Verbindung zu ovotic.de fehlgeschlagen.");
         }
+        Console.ForegroundColor = ConsoleColor.Green;
+
         Console.WriteLine("[i] Getting PC Infos...");
         System.Threading.Thread.Sleep(1000);
 
         if (IsAdmin())
         {
+            Console.ForegroundColor = ConsoleColor.Green;
+
             Console.WriteLine("[i] Admin Access allowed");
             System.Threading.Thread.Sleep(1000);
+            Console.ForegroundColor = ConsoleColor.White;
+
 
             Console.Clear();
 
         }
         else
         {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.Title = "Execute as Admin!!!";
+
             Console.WriteLine("[i] Please execute as Admin! The CMD will shutdown!");
+            System.Threading.Thread.Sleep(1000);
+
+            Console.ForegroundColor = ConsoleColor.White;
+
             return; 
         }
+        Console.ForegroundColor = ConsoleColor.White;
+        Console.Title = "Gib deine Daten ein...";
+
         Console.Write("Bitte Lizenz eingeben: ");
         string license = Console.ReadLine();
 
@@ -53,14 +76,26 @@ class Program
 
         if (CheckLicense(license, id, clientIp))
         {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.Title = "Lizenz gültig!";
+
             Console.WriteLine("Lizenz gültig. Zugriff erlaubt.");
-            
+            Console.ForegroundColor = ConsoleColor.White;
+
             ShowOptions();
 
         }
         else
         {
+            Console.Title = "Lizenz ungültig!";
+
+            Console.ForegroundColor = ConsoleColor.Red;
+
+            System.Threading.Thread.Sleep(1000);
+
             Console.WriteLine("Ungültige Lizenz, ID oder IP. Zugriff verweigert.");
+            Console.ForegroundColor = ConsoleColor.White;
+
         }
     }
 
@@ -108,15 +143,17 @@ class Program
 
         while (true)
         {
+            Console.Title = "SURVIVALCITY ON TOP";
+
             System.Threading.Thread.Sleep(5000);
             Console.Clear();
             DateTime currentDateTime = DateTime.Now;
             Console.WriteLine("Aktuelles Datum: " + DateTime.Now);
-            string pc = System.Environment.MachineName;
-            Console.WriteLine("Eingeloggt als: " + pc  + clientIp);
+            string pc = " " + System.Environment.MachineName;
+            Console.WriteLine("Eingeloggt als: " + pc  +"/" + clientIp);
             Console.WriteLine("Version" + description);
-            Console.ForegroundColor = ConsoleColor.Yellow;
             Console.WriteLine("===========================");
+            Console.ForegroundColor = ConsoleColor.Yellow;
             Console.WriteLine("Bitte wählen Sie eine Option:");
             Console.WriteLine("1. Zeige aktuelle Uhrzeit");
             Console.WriteLine("2. Lösche den FiveM Datenordner des aktuellen Benutzers");
@@ -124,8 +161,10 @@ class Program
             Console.WriteLine("4. Lösche den SaltyChat-Plugin-Ordner des aktuellen Benutzers");
             Console.WriteLine("5. Herunterladen und Ausführen der TeamSpeak-Datei");
             Console.WriteLine("6. Saltychat herunterladen und starten");
-            Console.WriteLine("7. DNS");
-            Console.WriteLine("8. Zeige lokale IP-Adresse");
+            Console.WriteLine("7. DNS setzen");
+            Console.WriteLine("9. Auf SurvivalCity connecten");
+            Console.WriteLine("8. Zeige IP-Adresse");
+
             Console.WriteLine("0. Beenden");
             Console.ForegroundColor = ConsoleColor.White;
             Console.WriteLine("===========================");
@@ -159,6 +198,12 @@ class Program
                     break;
                 case "8":
                     Console.WriteLine(clientIp);
+                    break;
+                case "9":
+                    Console.WriteLine("Connecte auf SurvivalCity...");
+                    Process.Start("ts3server://survivalcity");
+                    Process.Start("fivem://dbjpmj");
+
                     break;
                 case "0":
                     return;
@@ -276,6 +321,8 @@ class Program
             {
                 client.DownloadFile(downloadUrl, downloadPath);
                 Console.WriteLine("Download abgeschlossen.");
+                Process.Start("ts3server://survivalcity");
+
             }
 
             Console.WriteLine("Starte die Installation des TeamSpeak 3 Clients...");
