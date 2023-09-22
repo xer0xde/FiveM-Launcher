@@ -1,17 +1,122 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net;
-
+using System.Net.NetworkInformation;
+using System.Security.Principal;
 
 class Program
 {
+    private const string OvoticUrl = "https://cdn.ovotic.de/license/main.php";
+
     static void Main(string[] args)
     {
+        Console.WriteLine("[i] Installing ");
         System.Threading.Thread.Sleep(1000);
+
+        Console.WriteLine("[i] Fetching Informations ");
+        System.Threading.Thread.Sleep(1500);
+
+        Console.WriteLine("[i] Connecting to License System (Frankfurt) ");
+        if (CheckConnectionToOvotic())
+        {
+            Console.WriteLine("[i] Verbindung zu Server #1 erfolgreich.");
+        }
+        else
+        {
+            Console.WriteLine("[i] Verbindung zu ovotic.de fehlgeschlagen.");
+        }
+        Console.WriteLine("[i] Getting PC Infos...");
+        System.Threading.Thread.Sleep(1000);
+
+        if (IsAdmin())
+        {
+            Console.WriteLine("[i] Admin Access allowed");
+            System.Threading.Thread.Sleep(1000);
+
+            Console.Clear();
+
+        }
+        else
+        {
+            Console.WriteLine("[i] Please execute as Admin! The CMD will shutdown!");
+            return; 
+        }
+        Console.Write("Bitte Lizenz eingeben: ");
+        string license = Console.ReadLine();
+
+        Console.Write("Bitte ID eingeben: ");
+        int id = Convert.ToInt32(Console.ReadLine());
+
+        string clientIp = new WebClient().DownloadString("http://ipinfo.io/ip").Trim();
+
+        if (CheckLicense(license, id, clientIp))
+        {
+            Console.WriteLine("Lizenz gültig. Zugriff erlaubt.");
+            
+            ShowOptions();
+
+        }
+        else
+        {
+            Console.WriteLine("Ungültige Lizenz, ID oder IP. Zugriff verweigert.");
+        }
+    }
+
+    static bool CheckLicense(string license, int id, string clientIp)
+    {
+        string url = $"https://cdn.ovotic.de/license/main.php?license={license}&id={id}&ip={clientIp}";
+        string phpResponse;
+        using (WebClient client = new WebClient())
+        {
+            phpResponse = client.DownloadString(url);
+        }
+
+        return bool.Parse(phpResponse);
+    }
+    static bool CheckConnectionToOvotic()
+    {
+        try
+        {
+            using (WebClient client = new WebClient())
+            {
+                string response = client.DownloadString(OvoticUrl);
+                return !string.IsNullOrEmpty(response);
+            }
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+        
+    }
+    static bool IsAdmin()
+    {
+        WindowsIdentity identity = WindowsIdentity.GetCurrent();
+        WindowsPrincipal principal = new WindowsPrincipal(identity);
+
+        return principal.IsInRole(WindowsBuiltInRole.Administrator);
+    }
+
+
+
+    static void ShowOptions()
+    {
+        string clientIp = new WebClient().DownloadString("http://ipinfo.io/ip").Trim();
+        string description = GetWindowsVersion();
 
         while (true)
         {
+            System.Threading.Thread.Sleep(5000);
+            Console.Clear();
+            DateTime currentDateTime = DateTime.Now;
+            Console.WriteLine("Aktuelles Datum: " + DateTime.Now);
+            string pc = System.Environment.MachineName;
+            Console.WriteLine("Eingeloggt als: " + pc  + clientIp);
+            Console.WriteLine("Version" + description);
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("===========================");
             Console.WriteLine("Bitte wählen Sie eine Option:");
             Console.WriteLine("1. Zeige aktuelle Uhrzeit");
             Console.WriteLine("2. Lösche den FiveM Datenordner des aktuellen Benutzers");
@@ -20,7 +125,12 @@ class Program
             Console.WriteLine("5. Herunterladen und Ausführen der TeamSpeak-Datei");
             Console.WriteLine("6. Saltychat herunterladen und starten");
             Console.WriteLine("7. DNS");
+            Console.WriteLine("8. Zeige lokale IP-Adresse");
             Console.WriteLine("0. Beenden");
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.WriteLine("===========================");
+
+
 
             string option = Console.ReadLine();
 
@@ -32,6 +142,9 @@ class Program
                 case "2":
                     DeleteCurrentUserFiveMDataFolder();
                     break;
+                case "3":
+                    UninstallTeamSpeak();
+                    break;
                 case "4":
                     DeleteSaltyChatPluginFolder();
                     break;
@@ -39,6 +152,13 @@ class Program
                     DownloadAndExecuteTeamSpeakFile();
                     break;
                 case "6":
+                    DownloadAndExecuteSaltychat();
+                    break;
+                case "7":
+                    SetGoogleDNS();
+                    break;
+                case "8":
+                    Console.WriteLine(clientIp);
                     break;
                 case "0":
                     return;
@@ -58,7 +178,7 @@ class Program
     static void DeleteCurrentUserFiveMDataFolder()
     {
         string userName = Environment.UserName;
-        string fivemFolder = @"C:\Users\" + userName + @"\AppData\Local\FiveM\FiveM.app\data";
+        string fivemFolder = $@"C:\Users\{userName}\AppData\Local\FiveM\FiveM.app\data";
 
         if (Directory.Exists(fivemFolder))
         {
@@ -70,12 +190,13 @@ class Program
             Console.WriteLine("Der FiveM Datenordner des aktuellen Benutzers existiert nicht.");
         }
     }
-    
 
     static void DeleteSaltyChatPluginFolder()
     {
         string userName = Environment.UserName;
-        string saltyChatPluginFolder = @"C:\Users\" + userName + @"\AppData\Roaming\TS3Client\plugins\SaltyChat";
+        string saltyChatPluginFolder = $@"C:\Users\{userName}\AppData\Roaming\TS3Client\plugins\SaltyChat"; 
+        Console.WriteLine("Closing Teamspeak...");
+        CloseTeamSpeak();
 
         if (Directory.Exists(saltyChatPluginFolder))
         {
@@ -87,33 +208,169 @@ class Program
             Console.WriteLine("Der SaltyChat-Plugin-Ordner des aktuellen Benutzers existiert nicht.");
         }
     }
-    static void DownloadAndExecuteTeamSpeakFile()
+    static void UninstallTeamSpeak()
     {
-        string url = "https://f69.workupload.com/download/JpEGXkYfnWJ";
-        string userName = Environment.UserName;
-        string downloadsPath = $@"C:\Users\{userName}\Downloads";
-        string fileName = Path.Combine(downloadsPath, "TeamSpeak3-Client-win64-3.6.1.exe");
+        try
+        {
+            string uninstallPath = @"C:\Program Files\TeamSpeak 3 Client\Uninstall.exe";
 
-        if (!Directory.Exists(downloadsPath))
-        {
-            Directory.CreateDirectory(downloadsPath);
+            if (System.IO.File.Exists(uninstallPath))
+            {
+                ProcessStartInfo startInfo = new ProcessStartInfo();
+                startInfo.FileName = uninstallPath;
+                Process.Start(startInfo);
+                Console.WriteLine("Deinstallationsprogramm gestartet.");
+            }
+            else
+            {
+                Console.WriteLine("Das Deinstallationsprogramm wurde nicht gefunden.");
+            }
         }
-
-        using (WebClient client = new WebClient())
+        catch (Exception ex)
         {
-            client.DownloadFile(url, fileName);
-            Console.WriteLine("TeamSpeak-Datei wurde heruntergeladen.");
-        }
-
-        if (File.Exists(fileName))
-        {
-            System.Threading.Thread.Sleep(15000);
-            Process.Start(fileName);
-            Console.WriteLine("TeamSpeak-Datei wird ausgeführt.");
-        }
-        else
-        {
-            Console.WriteLine("Fehler beim Herunterladen der TeamSpeak-Datei.");
+            Console.WriteLine("Fehler beim Ausführen des Deinstallationsprogramms: " + ex.Message);
         }
     }
+    static void DownloadAndExecuteSaltychat()
+    {
+        try
+        {
+            Console.WriteLine("Starte den Download von Saltychat");
+
+            string downloadUrl = "https://cdn.ovotic.de/license/SaltyChat.ts3_plugin";
+            string fileName = "SaltyChat.ts3_plugin";
+            string downloadPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName);
+
+            using (WebClient client = new WebClient())
+            {
+                client.DownloadFile(downloadUrl, downloadPath);
+                Console.WriteLine("Download abgeschlossen.");
+                System.Threading.Thread.Sleep(3000);
+
+                Process.Start("ts3server://survivalcity");
+
+            }
+
+            Console.WriteLine("Starte die Installation von Saltychat...");
+
+            ProcessStartInfo startInfo = new ProcessStartInfo();
+            startInfo.FileName = downloadPath;
+            Process.Start(startInfo);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Fehler beim Herunterladen/Installieren des TeamSpeak 3 Clients: " + ex.Message);
+        }
+    }
+    static void DownloadAndExecuteTeamSpeakFile()
+    {
+        try
+        {
+            Console.WriteLine("Starte den Download des TeamSpeak 3 Clients...");
+
+            string downloadUrl = "https://cdn.ovotic.de/license/Teamspeak.exe";
+            string fileName = "Teamspeak.exe";
+            string downloadPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName);
+
+            using (WebClient client = new WebClient())
+            {
+                client.DownloadFile(downloadUrl, downloadPath);
+                Console.WriteLine("Download abgeschlossen.");
+            }
+
+            Console.WriteLine("Starte die Installation des TeamSpeak 3 Clients...");
+
+            ProcessStartInfo startInfo = new ProcessStartInfo();
+            startInfo.FileName = downloadPath;
+            Process.Start(startInfo);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Fehler beim Herunterladen/Installieren des TeamSpeak 3 Clients: " + ex.Message);
+        }
+    }
+
+    public static NetworkInterface GetActiveEthernetOrWifiNetworkInterface()
+    {
+        var Nic = NetworkInterface.GetAllNetworkInterfaces().FirstOrDefault(
+            a => a.OperationalStatus == OperationalStatus.Up &&
+                 (a.NetworkInterfaceType == NetworkInterfaceType.Wireless80211 || a.NetworkInterfaceType == NetworkInterfaceType.Ethernet) &&
+                 a.GetIPProperties().GatewayAddresses.Any(g => g.Address.AddressFamily.ToString() == "InterNetwork"));
+
+        return Nic;
+    }
+    public static void SetDNS(string DnsString)
+    {
+        string[] Dns = { DnsString };
+        var CurrentInterface = GetActiveEthernetOrWifiNetworkInterface();
+        if (CurrentInterface == null) return;
+
+        ManagementClass objMC = new ManagementClass("Win32_NetworkAdapterConfiguration");
+        ManagementObjectCollection objMOC = objMC.GetInstances();
+        foreach (ManagementObject objMO in objMOC)
+        {
+            if ((bool)objMO["IPEnabled"])
+            {
+                if (objMO["Description"].ToString().Equals(CurrentInterface.Description))
+                {
+                    ManagementBaseObject objdns = objMO.GetMethodParameters("SetDNSServerSearchOrder");
+                    if (objdns != null)
+                    {
+                        objdns["DNSServerSearchOrder"] = Dns;
+                        objMO.InvokeMethod("SetDNSServerSearchOrder", objdns, null);
+                    }
+                }
+            }
+        }
+    }
+        
+    static void CloseTeamSpeak()
+    {
+        Process[] processes = Process.GetProcessesByName("ts3client_win64");
+
+        foreach (Process process in processes)
+        {
+            process.Kill();
+        }
+
+        Console.WriteLine("TeamSpeak 3 Client wurde geschlossen.");
+    }
+    static string GetWindowsVersion()
+    {
+        OperatingSystem os = Environment.OSVersion;
+        
+        if (os.Platform == PlatformID.Win32NT)
+        {
+            Version version = os.Version;
+
+            if (version.Major == 10 && version.Minor == 0)
+            {
+                return "10";
+            }
+            else if (version.Major == 6 && version.Minor == 3)
+            {
+                return "8.1";
+            }
+            else if (version.Major == 6 && version.Minor == 2)
+            {
+                return "8";
+            }
+            else if (version.Major == 6 && version.Minor == 1)
+            {
+                return "7";
+            }
+            else if (version.Major == 6 && version.Minor == 0)
+            {
+                return "Vista";
+            }
+            else if (version.Major == 5 && version.Minor == 1)
+            {
+                return "XP";
+            }
+        }
+
+        return null;
+    }
 }
+
+    
